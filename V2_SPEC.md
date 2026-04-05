@@ -148,10 +148,12 @@ We store raw `perYearDoys` per region so client-side re-slicing (probability at 
 - One script, <200 lines, runs in a minute or two
 
 ### CI
-- **GitHub Action** that runs `scripts/build_map.py` on schedule (e.g. Jan 5 every year)
-  - Commits the new `public/map-data.json`
-  - Opens a PR
-- Keeps the site fresh automatically
+- **No scheduled rebuild**. The precompute script is run **manually**, by the
+  developer, once a year (typically in early January when the previous year's
+  data becomes stable in Open-Meteo's archive).
+- Running it is a deliberate act: open the Python script, run it locally,
+  review the diff to `public/map-data.json`, commit, push.
+- Stays simple; avoids GHA billing / secret management / silent failures.
 
 ## UX flow
 
@@ -181,8 +183,9 @@ scripts/
 └── build_map.py             # NEW — precompute script
 
 public/
-├── map-data.json            # NEW — output of build_map.py
-└── departements.geojson     # NEW — shapefile (static, committed once)
+├── map-data.json            # NEW — output of build_map.py (stats per dept)
+├── departements.geojson     # NEW — polygon shapes (static, committed once)
+└── departement-prefecture.json  # NEW — lookup: dept code → prefecture city
 
 src/
 ├── routes/                  # NEW — introduce routing
@@ -193,17 +196,25 @@ src/
 └── lib/
     └── mapColors.ts         # NEW — color scale helpers
 
-.github/workflows/
-└── rebuild-map.yml          # NEW — annual precompute automation
 ```
 
-## Open questions to answer before coding
+## Decisions (resolved)
 
-1. **Resolution**: départements (simple), or 30km grid (nicer but more work)? *Recommendation: départements.*
-2. **Routing**: introduce `react-router` for `/` vs `/map`? Or just a conditional inside `App.tsx`? *Recommendation: react-router — clean URLs, shareable map state.*
-3. **Tile provider**: raw OSM (free, occasional slow tiles) vs. MapTiler free tier (fast, needs account)? *Recommendation: start with OSM, switch to MapTiler if performance matters.*
-4. **Click-through from map → card**: which city represents a département? Its préfecture (e.g., Loire-Atlantique → Nantes)? *Recommendation: yes, ship a static `departement → prefecture` mapping.*
-5. **Should map data live in-repo (committed JSON) or be hosted separately**? *Recommendation: in-repo at v2 size (~50 KB). Reconsider if it grows past 5 MB.*
+1. **Resolution**: départements (96 regions). Upgrade to a finer grid later if
+   regional variation feels too coarse.
+2. **Routing**: **React Router**. `/` stays the single-city view; `/map` is
+   the new map view. Real URLs mean the map view is bookmarkable and the
+   browser back button works.
+3. **Basemap / tile provider**: **none** for v2.0. We render the département
+   polygons on a neutral background — the colored data *is* the visualization.
+   Avoids any external tile service, API keys, or attribution requirements.
+   Revisit once v2.0 ships if a basemap is missed.
+4. **Click-through target**: **préfecture of the département**. Loire-Atlantique
+   → Nantes, Bouches-du-Rhône → Marseille, etc. Ships as a static JSON
+   mapping (96 entries, pulled from data.gouv.fr).
+5. **Data storage**: **committed to `public/map-data.json`** in this repo. At
+   département resolution the file is ~50 KB gzipped — negligible for git.
+   Reconsider only if file size grows past ~5 MB.
 
 ## Success criteria
 
@@ -212,7 +223,7 @@ src/
 - Dragging the probability slider recolors the map in <16ms/frame (60fps)
 - Works offline after first load (service worker optional for v2)
 - Both language toggles and dark mode work on the map page
-- Annual data refresh is fully automated via GitHub Action
+- Data refresh is a manual, once-a-year operation by the developer
 
 ## Stages
 
