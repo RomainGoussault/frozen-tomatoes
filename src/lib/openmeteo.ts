@@ -104,6 +104,12 @@ type ArchiveApiResponse = {
  * change. We cache responses in localStorage, keyed by rounded coordinates
  * and the date range, to avoid hitting Open-Meteo's rate limit (HTTP 429)
  * on repeat visits and to make page loads instant.
+ *
+ * Rate-limit note: Open-Meteo counts "API calls" by a weighted formula:
+ *   weight = nLocations × (nDays / 14) × (nVariables / 10)
+ * Our 26-year × 1-variable archive fetch weighs ~68 calls per request.
+ * Free-tier limit is 600/min, 5000/hr, 10000/day per IP. Each cache hit
+ * avoids 68 weighted calls — the cache is unusually high-leverage.
  */
 export async function fetchDailyMinTemps(
   latitude: number,
