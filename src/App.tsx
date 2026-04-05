@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   geocodeCity,
   fetchDailyMinTemps,
   type GeocodedCity,
+  type DailyMinTemp,
 } from '@/lib/openmeteo'
 import { Slider } from '@/components/ui/slider'
 import {
@@ -12,12 +14,19 @@ import {
   doyToMonthDay,
   type FrostStats,
 } from '@/lib/stats'
-import { FrostChart } from '@/components/FrostChart'
 import { CitySearch } from '@/components/CitySearch'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { ExampleChips } from '@/components/ExampleChips'
 import { StatsCardSkeleton } from '@/components/StatsCardSkeleton'
+import { takePrefetched } from '@/lib/prefetch'
+
+// Lazy-load the chart (and thereby Recharts, ~450 KB) so it's not in the
+// initial JS bundle. The browser fetches it in parallel with the Open-Meteo
+// archive request; by the time stats are ready, the chart code usually is too.
+const FrostChart = lazy(() =>
+  import('@/components/FrostChart').then((m) => ({ default: m.FrostChart })),
+)
 import { useT, toLocale } from '@/lib/i18n'
 
 type Result = { city: GeocodedCity; stats: FrostStats }
@@ -42,30 +51,53 @@ function App() {
 
   // Core search: runs the full pipeline. Accepts either a raw city name
   // (will be geocoded) or a pre-geocoded city (from the autocomplete).
+  //
+  // If a prefetch is already in flight (see lib/prefetch.ts, triggered by
+  // main.tsx when the URL has ?city=...), we await that promise instead of
+  // starting duplicate network calls.
   const runSearch = useCallback(async (choice: string | GeocodedCity) => {
     try {
       let city: GeocodedCity | null
+      let days: DailyMinTemp[] | null = null
+
       if (typeof choice === 'string') {
         const trimmed = choice.trim()
         if (!trimmed) return
-        setStatus({ kind: 'loading', step: 'geocoding' })
-        city = await geocodeCity(trimmed)
-        if (!city) {
-          setStatus({ kind: 'not-found' })
-          setUrlCity(null)
-          return
+
+        // Fast path: if we prefetched this city's data at page load, use it.
+        const prefetched = takePrefetched(trimmed)
+        if (prefetched) {
+          setStatus({ kind: 'loading', step: 'fetching' })
+          const result = await prefetched
+          if (!result) {
+            setStatus({ kind: 'not-found' })
+            setUrlCity(null)
+            return
+          }
+          city = result.city
+          days = result.days
+        } else {
+          setStatus({ kind: 'loading', step: 'geocoding' })
+          city = await geocodeCity(trimmed)
+          if (!city) {
+            setStatus({ kind: 'not-found' })
+            setUrlCity(null)
+            return
+          }
         }
       } else {
         city = choice
       }
 
-      setStatus({ kind: 'loading', step: 'fetching' })
-      const days = await fetchDailyMinTemps(
-        city.latitude,
-        city.longitude,
-        `${START_YEAR}-01-01`,
-        `${END_YEAR}-12-31`,
-      )
+      if (!days) {
+        setStatus({ kind: 'loading', step: 'fetching' })
+        days = await fetchDailyMinTemps(
+          city.latitude,
+          city.longitude,
+          `${START_YEAR}-01-01`,
+          `${END_YEAR}-12-31`,
+        )
+      }
 
       setStatus({ kind: 'loading', step: 'computing' })
       const stats = computeFrostStats(days)
@@ -181,7 +213,9 @@ export function StatsCard({
           <Stat label={t('Latest ever')} value={formatMonthDay(stats.latestDate, locale)} />
         </div>
 
-        <FrostChart stats={stats} markerDoy={selectedDoy} />
+        <Suspense fallback={<Skeleton className="h-72 w-full" />}>
+          <FrostChart stats={stats} markerDoy={selectedDoy} />
+        </Suspense>
 
         <div className="space-y-3 pt-2">
           <div className="flex items-baseline justify-between">
