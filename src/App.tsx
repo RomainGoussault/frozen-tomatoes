@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   geocodeCity,
@@ -15,6 +13,7 @@ import {
   type FrostStats,
 } from '@/lib/stats'
 import { FrostChart } from '@/components/FrostChart'
+import { CitySearch } from '@/components/CitySearch'
 
 type Result = { city: GeocodedCity; stats: FrostStats }
 
@@ -33,20 +32,23 @@ function App() {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
 
-  // Core search: runs the full pipeline for a given city name.
-  // Wrapped in useCallback so it has a stable identity across re-renders,
-  // which matters for the useEffect dependency below.
-  const runSearch = useCallback(async (cityName: string) => {
-    const trimmed = cityName.trim()
-    if (!trimmed) return
-
+  // Core search: runs the full pipeline. Accepts either a raw city name
+  // (will be geocoded) or a pre-geocoded city (from the autocomplete).
+  const runSearch = useCallback(async (choice: string | GeocodedCity) => {
     try {
-      setStatus({ kind: 'loading', step: 'geocoding' })
-      const city = await geocodeCity(trimmed)
-      if (!city) {
-        setStatus({ kind: 'not-found' })
-        setUrlCity(null)
-        return
+      let city: GeocodedCity | null
+      if (typeof choice === 'string') {
+        const trimmed = choice.trim()
+        if (!trimmed) return
+        setStatus({ kind: 'loading', step: 'geocoding' })
+        city = await geocodeCity(trimmed)
+        if (!city) {
+          setStatus({ kind: 'not-found' })
+          setUrlCity(null)
+          return
+        }
+      } else {
+        city = choice
       }
 
       setStatus({ kind: 'loading', step: 'fetching' })
@@ -78,11 +80,6 @@ function App() {
     }
   }, [runSearch])
 
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault()
-    runSearch(query)
-  }
-
   return (
     <main className="min-h-svh flex flex-col items-center gap-8 p-6 pt-16">
       <header className="flex flex-col items-center gap-3 text-center">
@@ -94,17 +91,12 @@ function App() {
         </p>
       </header>
 
-      <form onSubmit={handleSubmit} className="flex w-full max-w-md gap-2">
-        <Input
-          placeholder="Nantes, Lyon, Strasbourg…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          autoFocus
-        />
-        <Button type="submit" disabled={status.kind === 'loading'}>
-          {status.kind === 'loading' ? 'Loading…' : 'Search'}
-        </Button>
-      </form>
+      <CitySearch
+        value={query}
+        onValueChange={setQuery}
+        onSelect={runSearch}
+        disabled={status.kind === 'loading'}
+      />
 
       <ResultPanel status={status} />
     </main>
@@ -152,7 +144,7 @@ function StatsCard({
       <CardHeader>
         <CardTitle>
           {city.name}
-          {city.admin1 ? `, ${city.admin1}` : ''}
+          {city.admin2 ? `, ${city.admin2}` : city.admin1 ? `, ${city.admin1}` : ''}
         </CardTitle>
         <p className="text-muted-foreground text-sm">
           {START_YEAR}–{END_YEAR} · last frost before July 1

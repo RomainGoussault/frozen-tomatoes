@@ -14,6 +14,8 @@ export type GeocodedCity = {
   name: string
   country: string
   admin1?: string // region (e.g. "Pays de la Loire"), may be absent
+  admin2?: string // département (e.g. "Mayenne"), may be absent
+  postcodes?: string[]
   latitude: number
   longitude: number
 }
@@ -24,6 +26,8 @@ type GeocodingApiResponse = {
     name: string
     country: string
     admin1?: string
+    admin2?: string
+    postcodes?: string[]
     latitude: number
     longitude: number
   }>
@@ -32,35 +36,45 @@ type GeocodingApiResponse = {
 // ---------- Functions ----------
 
 /**
- * Look up a French city by name. Returns the best match, or null if none.
+ * Look up French cities by name. Returns up to `limit` matches, best first.
  *
- * We restrict to country=FR since this project is French-only for v1.
+ * The optional `signal` lets callers cancel in-flight requests (e.g. when
+ * the user keeps typing and a fresher query supersedes this one).
  */
-export async function geocodeCity(
+export async function searchCities(
   query: string,
-): Promise<GeocodedCity | null> {
+  limit = 5,
+  signal?: AbortSignal,
+): Promise<GeocodedCity[]> {
   const url = new URL('https://geocoding-api.open-meteo.com/v1/search')
   url.searchParams.set('name', query)
-  url.searchParams.set('count', '1')
+  url.searchParams.set('count', String(limit))
   url.searchParams.set('language', 'fr')
   url.searchParams.set('countryCode', 'FR')
 
-  const response = await fetch(url)
+  const response = await fetch(url, { signal })
   if (!response.ok) {
     throw new Error(`Geocoding failed: HTTP ${response.status}`)
   }
 
   const data = (await response.json()) as GeocodingApiResponse
-  const first = data.results?.[0]
-  if (!first) return null
+  return (data.results ?? []).map((r) => ({
+    name: r.name,
+    country: r.country,
+    admin1: r.admin1,
+    admin2: r.admin2,
+    postcodes: r.postcodes,
+    latitude: r.latitude,
+    longitude: r.longitude,
+  }))
+}
 
-  return {
-    name: first.name,
-    country: first.country,
-    admin1: first.admin1,
-    latitude: first.latitude,
-    longitude: first.longitude,
-  }
+/** Convenience wrapper: best single match, or null. */
+export async function geocodeCity(
+  query: string,
+): Promise<GeocodedCity | null> {
+  const results = await searchCities(query, 1)
+  return results[0] ?? null
 }
 
 // ---------- Historical daily minimum temperatures ----------
