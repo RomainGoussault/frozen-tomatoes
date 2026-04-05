@@ -2,14 +2,15 @@
 // A dashed line marks the 20-year average.
 
 import {
-  ScatterChart,
-  Scatter,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   ReferenceLine,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from 'recharts'
 import type { FrostStats } from '@/lib/stats'
 import { useT, toLocale } from '@/lib/i18n'
@@ -41,33 +42,35 @@ export function FrostChart({ stats, markerDoy }: Props) {
     )
   }
 
-  // Compute a padded y-axis range so dots don't sit on the edges.
+  // Y-axis: pad the observed range so bars don't touch the top/bottom edges.
   const doys = data.map((d) => d.doy)
-  const yMin = Math.max(1, Math.min(...doys) - 10)
-  const yMax = Math.min(365, Math.max(...doys) + 10)
+  const yMin = Math.max(1, Math.min(...doys) - 12)
+  const yMax = Math.min(365, Math.max(...doys) + 12)
 
   return (
-    <div className="h-48 w-full">
+    <div className="h-72 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <BarChart data={data} margin={{ top: 16, right: 48, bottom: 8, left: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
           <XAxis
             dataKey="year"
-            type="number"
-            domain={['dataMin', 'dataMax']}
             tick={{ fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+            interval="preserveStartEnd"
             className="text-muted-foreground"
           />
           <YAxis
-            dataKey="doy"
             type="number"
             domain={[yMin, yMax]}
             tick={{ fontSize: 11 }}
             tickFormatter={(d) => doyToMonthDay(d, locale)}
-            width={44}
+            width={48}
+            tickLine={false}
+            axisLine={false}
             className="text-muted-foreground"
           />
-          <Tooltip content={<FrostTooltip locale={locale} />} cursor={{ strokeDasharray: '3 3' }} />
+          <Tooltip content={<FrostTooltip locale={locale} />} cursor={{ fill: 'transparent' }} />
           {stats.averageDayOfYear !== null && (
             <ReferenceLine
               y={stats.averageDayOfYear}
@@ -76,7 +79,9 @@ export function FrostChart({ stats, markerDoy }: Props) {
               className="text-muted-foreground"
               label={{
                 value: t('avg'),
-                position: 'right',
+                position: 'insideRight',
+                offset: 6,
+                dy: -8,
                 fontSize: 10,
                 className: 'fill-muted-foreground',
               }}
@@ -90,8 +95,12 @@ export function FrostChart({ stats, markerDoy }: Props) {
               className="text-primary"
             />
           )}
-          <Scatter data={data} fill="currentColor" className="text-primary" />
-        </ScatterChart>
+          <Bar dataKey="doy" fill="currentColor" className="text-primary" radius={[3, 3, 0, 0]}>
+            {data.map((_, i) => (
+              <Cell key={i} fillOpacity={0.85} />
+            ))}
+          </Bar>
+        </BarChart>
       </ResponsiveContainer>
     </div>
   )

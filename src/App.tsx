@@ -89,12 +89,12 @@ function App() {
   return (
     <>
       <Header />
-      <main className="min-h-svh flex flex-col items-center gap-8 p-6 pt-16">
-        <header className="flex flex-col items-center gap-3 text-center">
-          <h1 className="text-4xl font-semibold tracking-tight">
-            frozen tomatoes
+      <main className="min-h-svh flex flex-col items-center gap-10 p-6 pt-24">
+        <header className="flex flex-col items-center gap-4 text-center max-w-2xl">
+          <h1 className="text-6xl font-light tracking-tight">
+            Dernier gel
           </h1>
-          <p className="text-muted-foreground max-w-md">
+          <p className="text-muted-foreground text-lg leading-relaxed">
             {t('Last frost dates for French cities, so you know when to plant.')}
           </p>
         </header>
@@ -154,7 +154,7 @@ export function StatsCard({
   const totalYears = stats.yearsWithFrost + stats.yearsWithoutFrost
 
   return (
-    <Card className="w-full max-w-xl">
+    <Card className="w-full max-w-2xl">
       <CardHeader>
         <CardTitle>
           {city.name}
