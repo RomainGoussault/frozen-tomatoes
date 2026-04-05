@@ -15,6 +15,7 @@ import {
 import { FrostChart } from '@/components/FrostChart'
 import { CitySearch } from '@/components/CitySearch'
 import { Header } from '@/components/Header'
+import { Footer } from '@/components/Footer'
 import { useT, toLocale } from '@/lib/i18n'
 
 type Result = { city: GeocodedCity; stats: FrostStats }
@@ -26,9 +27,9 @@ type Status =
   | { kind: 'not-found' }
   | { kind: 'success'; result: Result }
 
-// Fetch window: last 20 complete years.
+// Fetch window: from 2000 through the last complete year.
+const START_YEAR = 2000
 const END_YEAR = new Date().getFullYear() - 1
-const START_YEAR = END_YEAR - 19
 
 function App() {
   const { t } = useT()
@@ -87,9 +88,9 @@ function App() {
   }, [runSearch])
 
   return (
-    <>
+    <div className="min-h-svh flex flex-col">
       <Header />
-      <main className="min-h-svh flex flex-col items-center gap-10 p-6 pt-24">
+      <main className="flex flex-1 flex-col items-center gap-10 p-6 pt-24">
         <header className="flex flex-col items-center gap-4 text-center max-w-2xl">
           <h1 className="text-6xl font-light tracking-tight">
             Dernier gel
@@ -108,7 +109,8 @@ function App() {
 
         <ResultPanel status={status} />
       </main>
-    </>
+      <Footer />
+    </div>
   )
 }
 

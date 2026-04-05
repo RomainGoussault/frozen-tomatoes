@@ -47,6 +47,16 @@ const translations = {
     fr: '{withFrost} années sur {total} ont connu un gel avant juillet',
     en: '{withFrost} of {total} years had frost before July',
   },
+  'Data:': { fr: 'Données :', en: 'Data:' },
+  'Open-Meteo (ERA5 reanalysis, ~9km grid)': {
+    fr: 'Open-Meteo (réanalyse ERA5, grille ~9km)',
+    en: 'Open-Meteo (ERA5 reanalysis, ~9km grid)',
+  },
+  'Probability = share of years with last frost after the selected date.': {
+    fr: 'Probabilité = part des années où le dernier gel est tombé après la date choisie.',
+    en: 'Probability = share of years with last frost after the selected date.',
+  },
+  Source: { fr: 'Code', en: 'Source' },
 } as const
 
 type TranslationKey = keyof typeof translations
