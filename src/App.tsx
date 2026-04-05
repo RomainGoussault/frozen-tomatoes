@@ -8,6 +8,7 @@ import {
   type GeocodedCity,
 } from '@/lib/openmeteo'
 import { computeFrostStats, type FrostStats } from '@/lib/stats'
+import { FrostChart } from '@/components/FrostChart'
 
 type Result = { city: GeocodedCity; stats: FrostStats }
 
@@ -109,7 +110,7 @@ function StatsCard({
   stats: FrostStats
 }) {
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-xl">
       <CardHeader>
         <CardTitle>
           {city.name}
@@ -125,6 +126,8 @@ function StatsCard({
           <Stat label="Median" value={formatMonthDay(stats.medianDate)} />
           <Stat label="Latest ever" value={formatMonthDay(stats.latestDate)} />
         </div>
+
+        <FrostChart stats={stats} />
 
         <p className="text-muted-foreground text-xs text-center">
           {stats.yearsWithFrost} of {stats.yearsWithFrost + stats.yearsWithoutFrost} years had frost before July

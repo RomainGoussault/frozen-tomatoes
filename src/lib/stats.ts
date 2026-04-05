@@ -10,6 +10,7 @@ import type { DailyMinTemp } from './openmeteo'
 export type YearResult = {
   year: number
   lastFrostDate: string | null // "YYYY-MM-DD", null = no frost that year
+  dayOfYear: number | null // 1–365 (non-leap reference), null = no frost
 }
 
 export type FrostStats = {
@@ -22,6 +23,8 @@ export type FrostStats = {
   medianDate: string | null
   /** Latest last-frost date ever observed. */
   latestDate: string | null
+  /** Average last-frost day-of-year (for plotting reference lines). */
+  averageDayOfYear: number | null
 }
 
 /**
@@ -58,7 +61,11 @@ export function computeFrostStats(days: DailyMinTemp[]): FrostStats {
         lastFrost = day.date
       }
     }
-    perYear.push({ year, lastFrostDate: lastFrost })
+    perYear.push({
+      year,
+      lastFrostDate: lastFrost,
+      dayOfYear: lastFrost ? dayOfYear(lastFrost) : null,
+    })
   }
 
   perYear.sort((a, b) => a.year - b.year)
@@ -79,6 +86,7 @@ export function computeFrostStats(days: DailyMinTemp[]): FrostStats {
       averageDate: null,
       medianDate: null,
       latestDate: null,
+      averageDayOfYear: null,
     }
   }
 
@@ -103,6 +111,7 @@ export function computeFrostStats(days: DailyMinTemp[]): FrostStats {
     averageDate: doyToMonthDay(avgDoy),
     medianDate: doyToMonthDay(medDoy),
     latestDate: monthDay(latestDate),
+    averageDayOfYear: avgDoy,
   }
 }
 
