@@ -1,0 +1,7 @@
+- main [ref=e3]:
+  - generic [ref=e4]:
+    - heading "frozen tomatoes" [level=1] [ref=e5]
+    - paragraph [ref=e6]: Last frost dates for French cities, so you know when to plant.
+  - generic [ref=e7]:
+    - textbox "Nantes, Lyon, Strasbourg…" [active] [ref=e8]
+    - button "Search" [ref=e9]
