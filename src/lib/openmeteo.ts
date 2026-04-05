@@ -99,6 +99,11 @@ type ArchiveApiResponse = {
 /**
  * Fetch daily minimum 2-meter air temperature for a location, inclusive range.
  * Uses the Europe/Paris timezone so day boundaries match French civil days.
+ *
+ * Historical climate data is immutable: the values for 2000–2024 will never
+ * change. We cache responses in localStorage, keyed by rounded coordinates
+ * and the date range, to avoid hitting Open-Meteo's rate limit (HTTP 429)
+ * on repeat visits and to make page loads instant.
  */
 export async function fetchDailyMinTemps(
   latitude: number,
@@ -106,6 +111,10 @@ export async function fetchDailyMinTemps(
   startDate: string, // "YYYY-MM-DD"
   endDate: string,
 ): Promise<DailyMinTemp[]> {
+  const cacheKey = makeArchiveCacheKey(latitude, longitude, startDate, endDate)
+  const cached = readCache<DailyMinTemp[]>(cacheKey)
+  if (cached) return cached
+
   const url = new URL('https://archive-api.open-meteo.com/v1/archive')
   url.searchParams.set('latitude', String(latitude))
   url.searchParams.set('longitude', String(longitude))
@@ -123,8 +132,84 @@ export async function fetchDailyMinTemps(
   const { time, temperature_2m_min } = data.daily
 
   // Zip the two parallel arrays into one array of objects.
-  return time.map((date, i) => ({
+  const days = time.map((date, i) => ({
     date,
     minTempC: temperature_2m_min[i],
   }))
+
+  writeCache(cacheKey, days)
+  return days
+}
+
+// ---------- localStorage cache (simple LRU, bounded) ----------
+//
+// Each cached entry is ~200 KB JSON. We cap at N entries and evict the
+// least-recently-read one when full.
+
+const CACHE_PREFIX = 'frozen-tomatoes.archive:'
+const CACHE_MAX_ENTRIES = 20
+
+function makeArchiveCacheKey(
+  lat: number,
+  lon: number,
+  start: string,
+  end: string,
+): string {
+  // Round coords to 3 decimals (~100m) to share cache between near-identical
+  // lookups from different geocoding results for the same city.
+  const la = lat.toFixed(3)
+  const lo = lon.toFixed(3)
+  return `${CACHE_PREFIX}${la},${lo}|${start}|${end}`
+}
+
+function readCache<T>(key: string): T | null {
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return null
+    const { value } = JSON.parse(raw) as { value: T; readAt: number }
+    // Touch the entry (update readAt) so LRU eviction considers it fresh.
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({ value, readAt: Date.now() }),
+    )
+    return value
+  } catch {
+    return null
+  }
+}
+
+function writeCache<T>(key: string, value: T): void {
+  try {
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({ value, readAt: Date.now() }),
+    )
+    evictOldEntriesIfFull()
+  } catch {
+    // localStorage full or disabled; continue without caching.
+  }
+}
+
+function evictOldEntriesIfFull(): void {
+  const entries: Array<{ key: string; readAt: number }> = []
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const key = window.localStorage.key(i)
+    if (!key || !key.startsWith(CACHE_PREFIX)) continue
+    try {
+      const raw = window.localStorage.getItem(key)
+      if (!raw) continue
+      const { readAt } = JSON.parse(raw) as { readAt: number }
+      entries.push({ key, readAt })
+    } catch {
+      // Corrupt entry — remove it.
+      window.localStorage.removeItem(key)
+    }
+  }
+  if (entries.length <= CACHE_MAX_ENTRIES) return
+  // Sort oldest-first and drop until we're back under the limit.
+  entries.sort((a, b) => a.readAt - b.readAt)
+  const toEvict = entries.slice(0, entries.length - CACHE_MAX_ENTRIES)
+  for (const { key } of toEvict) {
+    window.localStorage.removeItem(key)
+  }
 }
