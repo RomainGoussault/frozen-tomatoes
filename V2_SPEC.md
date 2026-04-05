@@ -25,9 +25,9 @@ Turn frozen-tomatoes from a *lookup tool* ("what's the last frost in Nantes?") i
 - Custom time windows (stays fixed at 2000 → last complete year)
 - Worldwide coverage (France only)
 
-## Architecture: Python precompute, no backend
+## Architecture: TypeScript precompute, no backend
 
-**Decision: precompute all map data as a static JSON file using Python, shipped via the CDN. No backend server, no serverless functions.**
+**Decision: precompute all map data as a static JSON file using a TypeScript script run via `tsx`, shipped via the CDN. No backend server, no serverless functions.**
 
 ### Why this works
 
@@ -46,47 +46,59 @@ Therefore we can **compute once, serve forever** — or more precisely, **recomp
 | Cost | $5+/mo + auth + monitoring | $0, served from Vercel CDN |
 | Latency | API call per request | Single file load, CDN-cached |
 | Open-Meteo rate limit | Hit on every user request | Hit *once* during precompute |
-| Complexity | Serverless function + env vars | One Python script |
-| User's Python skills | Transferable only if backend is Python | 100% Python |
+| Complexity | Serverless function + env vars | One TypeScript script |
+| Language in the repo | Would depend on stack | Same TS everywhere, code reuse with the frontend |
 
 The only "live" computation is the user's slider changing the displayed stat, which is a pure function over already-loaded data — trivially client-side.
 
-### Why Python for the precompute
+### Why TypeScript for the precompute
 
-- The user is a Python developer — they can write the script idiomatically
-- Parallelism for calling Open-Meteo: `asyncio` + `httpx` or `aiohttp`
-- GeoPandas + Shapely for shaping the output GeoJSON
-- Nice `numpy`-based stats if we want to replicate our TS computation in Python (or we could call out to Node, but that's over-engineering)
+- **Code reuse**: the script imports `computeFrostStats` directly from
+  `src/lib/stats.ts` and `fetchDailyMinTemps` from `src/lib/openmeteo.ts`.
+  Single source of truth for the stats logic — no risk of drift between a
+  browser implementation and a script implementation.
+- **One language in the repo**: no extra `requirements.txt`, no venv, no
+  second lint/test/CI setup.
+- **Executed via `tsx`** (a thin TypeScript runtime built on esbuild): added
+  as a dev dependency, invoked as `pnpm exec tsx scripts/build-map.ts`.
+- Native `fetch`, `AbortController`, and `async/await` in modern Node cover
+  everything we need for rate-limited concurrent HTTP.
+
+Python would be fine if we needed GeoPandas / spatial analysis / climate
+modeling. For "call 96 URLs, compute stats, write JSON," TypeScript wins on
+simplicity and code reuse.
 
 ## Architecture diagram
 
 ```
-┌─────────────────────┐
-│  Python precompute  │   (runs once a year, locally or via GitHub Action)
-│  scripts/build_map  │
-│        .py          │
-└──────────┬──────────┘
-           │
-           │ calls ~1,500-3,000 times
-           ▼
-    ┌──────────────┐
-    │  Open-Meteo  │
-    │   archive    │
-    └──────────────┘
-           │
-           ▼ writes
-    public/map-data.json  (gzip ≈ 500 KB-2 MB)
-           │
-           │ shipped with the Vite build
-           ▼
-    ┌──────────────────────┐
-    │  Browser (v2 / map)  │
-    │                      │
-    │  - loads GeoJSON     │
-    │  - MapLibre renders  │
-    │  - client-side recolor
-    │    on slider change  │
-    └──────────────────────┘
+┌──────────────────────────┐
+│  TypeScript precompute   │   (run manually once a year)
+│  scripts/build-map.ts    │
+│  (tsx + rate-limited     │
+│   async fetches)         │
+└─────────────┬────────────┘
+              │
+              │ 96 calls (rate-limited, ~10 min total)
+              ▼
+       ┌──────────────┐
+       │  Open-Meteo  │
+       │   archive    │
+       └──────┬───────┘
+              │
+              ▼ writes
+       public/map-data.json  (gzip ≈ 50 KB at department level)
+              │
+              │ shipped with the Vite build
+              ▼
+       ┌──────────────────────┐
+       │  Browser (v2 /map)   │
+       │                      │
+       │  - loads GeoJSON +   │
+       │    map-data.json     │
+       │  - MapLibre renders  │
+       │  - client-side       │
+       │    recolor on slider │
+       └──────────────────────┘
 ```
 
 ## Data resolution — open question
@@ -137,21 +149,26 @@ We store raw `perYearDoys` per region so client-side re-slicing (probability at 
 ## Tech stack additions
 
 ### Frontend (React)
-- **MapLibre GL JS** — free, open-source map rendering (vector tiles, WebGL). No API key.
-- **Tile source**: OpenStreetMap via a free tile service, or MapTiler (free tier with attribution)
-- **GeoJSON of French départements** — public-domain shapefile from IGN or data.gouv.fr
-- **Color scale**: a perceptually-uniform gradient (e.g. Viridis or custom sage→tomato)
+- **React Router** — `/` vs `/map` routes, shareable URLs
+- **MapLibre GL JS** — free, open-source map rendering (WebGL). No API key.
+- **No basemap**: département polygons rendered on a neutral background.
+- **GeoJSON of French départements** — public-domain from data.gouv.fr
+- **Color scale**: a perceptually-uniform gradient (sage → tomato, tied to theme)
 
-### Python precompute
-- `httpx` or `aiohttp` — concurrent HTTP requests to Open-Meteo
-- `numpy` — stats computation
-- One script, <200 lines, runs in a minute or two
+### TypeScript precompute script
+- `scripts/build-map.ts` — single script, ~150 lines
+- Reuses `fetchDailyMinTemps` from `src/lib/openmeteo.ts` and
+  `computeFrostStats` from `src/lib/stats.ts` — no logic duplication
+- Native `fetch` + `async/await`, with a simple sleep-based rate limiter
+  to stay under Open-Meteo's 600/minute weighted-call limit
+- Runs via `pnpm exec tsx scripts/build-map.ts` (add `tsx` as dev dep)
+- Expected runtime: ~10-12 minutes for all 96 départements
 
 ### CI
-- **No scheduled rebuild**. The precompute script is run **manually**, by the
+- **No scheduled rebuild**. The script is run **manually**, by the
   developer, once a year (typically in early January when the previous year's
   data becomes stable in Open-Meteo's archive).
-- Running it is a deliberate act: open the Python script, run it locally,
+- Running it is a deliberate act: `pnpm exec tsx scripts/build-map.ts`,
   review the diff to `public/map-data.json`, commit, push.
 - Stays simple; avoids GHA billing / secret management / silent failures.
 
@@ -180,10 +197,12 @@ User lands on / (v1 card view, unchanged)
 
 ```
 scripts/
-└── build_map.py             # NEW — precompute script
+├── build-map.ts             # NEW — precompute script (run via tsx)
+└── data/
+    └── departments.ts       # NEW — static list: code, name, centroid lat/lon
 
 public/
-├── map-data.json            # NEW — output of build_map.py (stats per dept)
+├── map-data.json            # NEW — output of build-map.ts (stats per dept)
 ├── departements.geojson     # NEW — polygon shapes (static, committed once)
 └── departement-prefecture.json  # NEW — lookup: dept code → prefecture city
 
@@ -195,7 +214,6 @@ src/
 │   └── FranceMap.tsx        # NEW — MapLibre wrapper
 └── lib/
     └── mapColors.ts         # NEW — color scale helpers
-
 ```
 
 ## Decisions (resolved)
@@ -227,7 +245,7 @@ src/
 
 ## Stages
 
-**v2.0** — départements colored by median last-frost, hover-tooltip, click-through to city view, French/English, dark/light. Ship the Python precompute script + annual GHA.
+**v2.0** — départements colored by median last-frost, hover-tooltip, click-through to city view, French/English, dark/light. Ship the TypeScript precompute script; no scheduled job.
 
 **v2.1** — probability-at-date slider on the map.
 
