@@ -5,7 +5,7 @@ import { useT } from '@/lib/i18n'
 export function Footer() {
   const { t } = useT()
   return (
-    <footer className="text-muted-foreground max-w-2xl px-4 pb-12 pt-4 text-center text-xs leading-relaxed">
+    <footer className="text-muted-foreground mx-auto max-w-2xl px-4 pb-12 pt-4 text-center text-xs leading-relaxed">
       <p>
         {t('Data:')}{' '}
         <a
