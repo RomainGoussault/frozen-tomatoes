@@ -62,3 +62,55 @@ export async function geocodeCity(
     longitude: first.longitude,
   }
 }
+
+// ---------- Historical daily minimum temperatures ----------
+
+/**
+ * One day's minimum temperature.
+ * `date` is an ISO string like "2024-03-15".
+ * `minTempC` is null on the rare days Open-Meteo has no value.
+ */
+export type DailyMinTemp = {
+  date: string
+  minTempC: number | null
+}
+
+type ArchiveApiResponse = {
+  daily: {
+    time: string[]
+    temperature_2m_min: (number | null)[]
+  }
+}
+
+/**
+ * Fetch daily minimum 2-meter air temperature for a location, inclusive range.
+ * Uses the Europe/Paris timezone so day boundaries match French civil days.
+ */
+export async function fetchDailyMinTemps(
+  latitude: number,
+  longitude: number,
+  startDate: string, // "YYYY-MM-DD"
+  endDate: string,
+): Promise<DailyMinTemp[]> {
+  const url = new URL('https://archive-api.open-meteo.com/v1/archive')
+  url.searchParams.set('latitude', String(latitude))
+  url.searchParams.set('longitude', String(longitude))
+  url.searchParams.set('start_date', startDate)
+  url.searchParams.set('end_date', endDate)
+  url.searchParams.set('daily', 'temperature_2m_min')
+  url.searchParams.set('timezone', 'Europe/Paris')
+
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`Archive fetch failed: HTTP ${response.status}`)
+  }
+
+  const data = (await response.json()) as ArchiveApiResponse
+  const { time, temperature_2m_min } = data.daily
+
+  // Zip the two parallel arrays into one array of objects.
+  return time.map((date, i) => ({
+    date,
+    minTempC: temperature_2m_min[i],
+  }))
+}
