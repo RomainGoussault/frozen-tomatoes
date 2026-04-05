@@ -9,6 +9,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { CitySearch } from './CitySearch'
+import { LangProvider } from '@/lib/i18n'
 import type { GeocodedCity } from '@/lib/openmeteo'
 
 // Mock the module CitySearch imports from. All tests control what
@@ -32,11 +33,13 @@ function Harness({
 }) {
   const [value, setValue] = useState(initialValue)
   return (
-    <CitySearch
-      value={value}
-      onValueChange={setValue}
-      onSelect={onSelect ?? (() => {})}
-    />
+    <LangProvider>
+      <CitySearch
+        value={value}
+        onValueChange={setValue}
+        onSelect={onSelect ?? (() => {})}
+      />
+    </LangProvider>
   )
 }
 

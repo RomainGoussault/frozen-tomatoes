@@ -8,8 +8,17 @@ import { describe, expect, test } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StatsCard } from './App'
+import { LangProvider } from '@/lib/i18n'
 import type { GeocodedCity } from '@/lib/openmeteo'
 import type { FrostStats, YearResult } from '@/lib/stats'
+
+function renderCard(city: GeocodedCity, stats: FrostStats) {
+  return render(
+    <LangProvider>
+      <StatsCard city={city} stats={stats} />
+    </LangProvider>,
+  )
+}
 
 // Four synthetic years with last-frost day-of-year = 60, 80, 100, 120.
 // Average doy = 90 (that's where the slider starts).
@@ -49,14 +58,14 @@ const nantes: GeocodedCity = {
 
 describe('StatsCard', () => {
   test('renders city name with département', () => {
-    render(<StatsCard city={nantes} stats={stats} />)
+    renderCard(nantes, stats)
     expect(
       screen.getByText('Nantes, Loire-Atlantique'),
     ).toBeInTheDocument()
   })
 
   test('shows initial probability at the average day-of-year', () => {
-    render(<StatsCard city={nantes} stats={stats} />)
+    renderCard(nantes, stats)
     // Initial slider position = averageDayOfYear (90).
     // 2 of 4 years had frost after doy 90 → 50%.
     expect(screen.getByText('50%')).toBeInTheDocument()
@@ -64,7 +73,7 @@ describe('StatsCard', () => {
 
   test('updates probability when slider is moved right', async () => {
     const user = userEvent.setup()
-    render(<StatsCard city={nantes} stats={stats} />)
+    renderCard(nantes, stats)
 
     expect(screen.getByText('50%')).toBeInTheDocument()
 
@@ -81,7 +90,7 @@ describe('StatsCard', () => {
 
   test('shows 0% when slider is past the latest observed frost', async () => {
     const user = userEvent.setup()
-    render(<StatsCard city={nantes} stats={stats} />)
+    renderCard(nantes, stats)
 
     const slider = screen.getByRole('slider')
     slider.focus()

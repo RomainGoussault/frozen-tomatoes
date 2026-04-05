@@ -24,6 +24,11 @@ if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {}
 }
 
+// Force English in tests so string assertions are deterministic.
+if (typeof window !== 'undefined') {
+  window.localStorage.setItem('frozen-tomatoes.lang', 'en')
+}
+
 afterEach(() => {
   cleanup()
 })

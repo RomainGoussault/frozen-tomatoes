@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { searchCities, type GeocodedCity } from '@/lib/openmeteo'
 import { useDebouncedValue } from '@/lib/hooks'
+import { useT } from '@/lib/i18n'
 
 type Props = {
   value: string
@@ -24,6 +25,7 @@ export function CitySearch({
   onSelect,
   disabled,
 }: Props) {
+  const { t } = useT()
   const [fetched, setFetched] = useState<GeocodedCity[]>([])
   const [open, setOpen] = useState(false)
   const debouncedQuery = useDebouncedValue(value, 200)
@@ -98,7 +100,7 @@ export function CitySearch({
         autoComplete="off"
       />
       <Button type="submit" disabled={disabled}>
-        Search
+        {disabled ? t('Loading…') : t('Search')}
       </Button>
 
       {showDropdown && (

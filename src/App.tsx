@@ -14,6 +14,8 @@ import {
 } from '@/lib/stats'
 import { FrostChart } from '@/components/FrostChart'
 import { CitySearch } from '@/components/CitySearch'
+import { Header } from '@/components/Header'
+import { useT, toLocale } from '@/lib/i18n'
 
 type Result = { city: GeocodedCity; stats: FrostStats }
 
@@ -29,6 +31,7 @@ const END_YEAR = new Date().getFullYear() - 1
 const START_YEAR = END_YEAR - 19
 
 function App() {
+  const { t } = useT()
   // Initial query is read from ?city= once, on mount. The function form
   // of useState is a "lazy initializer" — it runs exactly once.
   const [query, setQuery] = useState(() => getUrlCity() ?? '')
@@ -84,29 +87,33 @@ function App() {
   }, [runSearch])
 
   return (
-    <main className="min-h-svh flex flex-col items-center gap-8 p-6 pt-16">
-      <header className="flex flex-col items-center gap-3 text-center">
-        <h1 className="text-4xl font-semibold tracking-tight">
-          frozen tomatoes
-        </h1>
-        <p className="text-muted-foreground max-w-md">
-          Last frost dates for French cities, so you know when to plant.
-        </p>
-      </header>
+    <>
+      <Header />
+      <main className="min-h-svh flex flex-col items-center gap-8 p-6 pt-16">
+        <header className="flex flex-col items-center gap-3 text-center">
+          <h1 className="text-4xl font-semibold tracking-tight">
+            frozen tomatoes
+          </h1>
+          <p className="text-muted-foreground max-w-md">
+            {t('Last frost dates for French cities, so you know when to plant.')}
+          </p>
+        </header>
 
-      <CitySearch
-        value={query}
-        onValueChange={setQuery}
-        onSelect={runSearch}
-        disabled={status.kind === 'loading'}
-      />
+        <CitySearch
+          value={query}
+          onValueChange={setQuery}
+          onSelect={runSearch}
+          disabled={status.kind === 'loading'}
+        />
 
-      <ResultPanel status={status} />
-    </main>
+        <ResultPanel status={status} />
+      </main>
+    </>
   )
 }
 
 function ResultPanel({ status }: { status: Status }) {
+  const { t } = useT()
   if (status.kind === 'idle' || status.kind === 'loading') return null
 
   if (status.kind === 'error') {
@@ -114,7 +121,7 @@ function ResultPanel({ status }: { status: Status }) {
   }
 
   if (status.kind === 'not-found') {
-    return <p className="text-muted-foreground text-sm">No city found.</p>
+    return <p className="text-muted-foreground text-sm">{t('No city found.')}</p>
   }
 
   const { city, stats } = status.result
@@ -128,6 +135,9 @@ export function StatsCard({
   city: GeocodedCity
   stats: FrostStats
 }) {
+  const { t, lang } = useT()
+  const locale = toLocale(lang)
+
   // Slider range: bracket the observed data with some padding, clamped.
   const observedDoys = stats.perYear
     .map((y) => y.dayOfYear)
@@ -141,6 +151,7 @@ export function StatsCard({
   const [selectedDoy, setSelectedDoy] = useState(initialDoy)
 
   const probability = probabilityOfFrostAfter(stats, selectedDoy)
+  const totalYears = stats.yearsWithFrost + stats.yearsWithoutFrost
 
   return (
     <Card className="w-full max-w-xl">
@@ -150,14 +161,14 @@ export function StatsCard({
           {city.admin2 ? `, ${city.admin2}` : city.admin1 ? `, ${city.admin1}` : ''}
         </CardTitle>
         <p className="text-muted-foreground text-sm">
-          {START_YEAR}–{END_YEAR} · last frost before July 1
+          {START_YEAR}–{END_YEAR} · {t('last frost before July 1')}
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-3 gap-3 text-center">
-          <Stat label="Average" value={formatMonthDay(stats.averageDate)} />
-          <Stat label="Median" value={formatMonthDay(stats.medianDate)} />
-          <Stat label="Latest ever" value={formatMonthDay(stats.latestDate)} />
+          <Stat label={t('Average')} value={formatMonthDay(stats.averageDate, locale)} />
+          <Stat label={t('Median')} value={formatMonthDay(stats.medianDate, locale)} />
+          <Stat label={t('Latest ever')} value={formatMonthDay(stats.latestDate, locale)} />
         </div>
 
         <FrostChart stats={stats} markerDoy={selectedDoy} />
@@ -165,9 +176,9 @@ export function StatsCard({
         <div className="space-y-3 pt-2">
           <div className="flex items-baseline justify-between">
             <span className="text-muted-foreground text-sm">
-              Chance of frost after{' '}
+              {t('Chance of frost after')}{' '}
               <span className="text-foreground font-medium">
-                {formatMonthDay(doyToMonthDay(selectedDoy))}
+                {formatMonthDay(doyToMonthDay(selectedDoy), locale)}
               </span>
             </span>
             <span className="text-2xl font-semibold tabular-nums">
@@ -184,7 +195,10 @@ export function StatsCard({
         </div>
 
         <p className="text-muted-foreground text-xs text-center">
-          {stats.yearsWithFrost} of {stats.yearsWithFrost + stats.yearsWithoutFrost} years had frost before July
+          {t('X of Y years had frost before July', {
+            withFrost: stats.yearsWithFrost,
+            total: totalYears,
+          })}
         </p>
       </CardContent>
     </Card>
@@ -202,12 +216,12 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
-/** Display "05-12" as "May 12". */
-function formatMonthDay(mmdd: string | null): string {
+/** Display "05-12" as "May 12" (en) or "12 mai" (fr). */
+function formatMonthDay(mmdd: string | null, locale: string): string {
   if (!mmdd) return '—'
   const [mm, dd] = mmdd.split('-')
   const date = new Date(Date.UTC(2001, Number(mm) - 1, Number(dd)))
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     timeZone: 'UTC',

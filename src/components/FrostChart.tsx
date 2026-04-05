@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import type { FrostStats } from '@/lib/stats'
+import { useT, toLocale } from '@/lib/i18n'
 
 type Props = {
   stats: FrostStats
@@ -20,6 +21,9 @@ type Props = {
 }
 
 export function FrostChart({ stats, markerDoy }: Props) {
+  const { t, lang } = useT()
+  const locale = toLocale(lang)
+
   // Recharts wants a flat array of {x, y} objects. We drop years with no frost.
   const data = stats.perYear
     .filter((y) => y.dayOfYear !== null)
@@ -32,7 +36,7 @@ export function FrostChart({ stats, markerDoy }: Props) {
   if (data.length === 0) {
     return (
       <p className="text-muted-foreground text-xs text-center">
-        No frost observed in the last 20 years.
+        {t('No frost observed in the last 20 years.')}
       </p>
     )
   }
@@ -59,11 +63,11 @@ export function FrostChart({ stats, markerDoy }: Props) {
             type="number"
             domain={[yMin, yMax]}
             tick={{ fontSize: 11 }}
-            tickFormatter={doyToMonthDay}
+            tickFormatter={(d) => doyToMonthDay(d, locale)}
             width={44}
             className="text-muted-foreground"
           />
-          <Tooltip content={<FrostTooltip />} cursor={{ strokeDasharray: '3 3' }} />
+          <Tooltip content={<FrostTooltip locale={locale} />} cursor={{ strokeDasharray: '3 3' }} />
           {stats.averageDayOfYear !== null && (
             <ReferenceLine
               y={stats.averageDayOfYear}
@@ -71,7 +75,7 @@ export function FrostChart({ stats, markerDoy }: Props) {
               strokeDasharray="4 4"
               className="text-muted-foreground"
               label={{
-                value: 'avg',
+                value: t('avg'),
                 position: 'right',
                 fontSize: 10,
                 className: 'fill-muted-foreground',
@@ -97,13 +101,15 @@ export function FrostChart({ stats, markerDoy }: Props) {
 function FrostTooltip({
   active,
   payload,
+  locale,
 }: {
   active?: boolean
   payload?: Array<{ payload: { year: number; date: string } }>
+  locale: string
 }) {
   if (!active || !payload?.length) return null
   const { year, date } = payload[0].payload
-  const formatted = formatFullDate(date)
+  const formatted = formatFullDate(date, locale)
   return (
     <div className="rounded-md border bg-background px-2 py-1 text-xs shadow-sm">
       <div className="font-medium">{year}</div>
@@ -112,18 +118,18 @@ function FrostTooltip({
   )
 }
 
-function doyToMonthDay(doy: number): string {
+function doyToMonthDay(doy: number, locale: string): string {
   const date = new Date(Date.UTC(2001, 0, doy))
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     timeZone: 'UTC',
   })
 }
 
-function formatFullDate(isoDate: string): string {
+function formatFullDate(isoDate: string, locale: string): string {
   const date = new Date(isoDate + 'T00:00:00Z')
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale, {
     month: 'long',
     day: 'numeric',
     timeZone: 'UTC',
