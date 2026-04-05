@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,9 +33,11 @@ function App() {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault()
-    const trimmed = query.trim()
+  // Core search: runs the full pipeline for a given city name.
+  // Wrapped in useCallback so it has a stable identity across re-renders,
+  // which matters for the useEffect dependency below.
+  const runSearch = useCallback(async (cityName: string) => {
+    const trimmed = cityName.trim()
     if (!trimmed) return
 
     try {
@@ -43,6 +45,7 @@ function App() {
       const city = await geocodeCity(trimmed)
       if (!city) {
         setStatus({ kind: 'not-found' })
+        setUrlCity(null)
         return
       }
 
@@ -57,12 +60,27 @@ function App() {
       setStatus({ kind: 'loading', step: 'computing' })
       const stats = computeFrostStats(days)
       setStatus({ kind: 'success', result: { city, stats } })
+      setUrlCity(city.name)
     } catch (err) {
       setStatus({
         kind: 'error',
         message: err instanceof Error ? err.message : 'Unknown error',
       })
     }
+  }, [])
+
+  // On first mount: if ?city=... is in the URL, prefill and auto-search.
+  useEffect(() => {
+    const fromUrl = getUrlCity()
+    if (fromUrl) {
+      setQuery(fromUrl)
+      runSearch(fromUrl)
+    }
+  }, [runSearch])
+
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    runSearch(query)
   }
 
   return (
@@ -199,6 +217,26 @@ function formatMonthDay(mmdd: string | null): string {
     day: 'numeric',
     timeZone: 'UTC',
   })
+}
+
+// ---------- URL state helpers ----------
+
+/** Read the `city` query param from the current URL, or null. */
+function getUrlCity(): string | null {
+  const params = new URLSearchParams(window.location.search)
+  const value = params.get('city')
+  return value && value.trim() ? value : null
+}
+
+/** Write `?city=...` into the URL without reloading the page. Pass null to clear. */
+function setUrlCity(city: string | null): void {
+  const url = new URL(window.location.href)
+  if (city) {
+    url.searchParams.set('city', city)
+  } else {
+    url.searchParams.delete('city')
+  }
+  window.history.replaceState(null, '', url)
 }
 
 export default App
