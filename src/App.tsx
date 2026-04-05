@@ -118,7 +118,7 @@ function ResultPanel({ status }: { status: Status }) {
   return <StatsCard city={city} stats={stats} />
 }
 
-function StatsCard({
+export function StatsCard({
   city,
   stats,
 }: {
