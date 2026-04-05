@@ -1,73 +1,50 @@
-# React + TypeScript + Vite
+# frozen-tomatoes
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Last-frost statistics for French cities — helping gardeners decide when it's safe to plant frost-sensitive vegetables.
 
-Currently, two official plugins are available:
+Enter a French city, get:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Average / median / latest date of the last sub-0°C day each year, over the last 20 years
+- A scatter chart showing year-to-year variability
+- An interactive probability slider: *"chance of frost after date X"*
 
-## React Compiler
+Data comes from [Open-Meteo](https://open-meteo.com/) (ERA5 reanalysis, free, no API key).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Stack
 
-## Expanding the ESLint configuration
+Vite · TypeScript · React 19 · Tailwind CSS v4 · shadcn/ui · Recharts · Vitest
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Running locally
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Requires Node 20+ and pnpm.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm install
+pnpm dev        # dev server at http://localhost:5173
+pnpm test       # run tests in watch mode
+pnpm build      # type-check + build to dist/
+pnpm lint       # ESLint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Project structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+src/
+├── App.tsx               # root component + StatsCard
+├── components/
+│   ├── CitySearch.tsx    # autocomplete search
+│   ├── FrostChart.tsx    # scatter chart
+│   └── ui/               # shadcn components
+├── lib/
+│   ├── openmeteo.ts      # typed Open-Meteo client
+│   ├── stats.ts          # pure frost-stats computation
+│   └── hooks.ts          # useDebouncedValue
+└── test/setup.ts         # jsdom polyfills
+```
+
+## Notes
+
+- French cities only (`countryCode=FR` in the geocoding query)
+- Cutoff: frost occurring strictly before July 1 each year
+- 20-year window, excluding the current (incomplete) year
+- Open-Meteo data is model reanalysis (~9km grid), not physical stations — fine for gardening-scale decisions
