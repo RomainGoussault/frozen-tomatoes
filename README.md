@@ -16,6 +16,11 @@ Data comes from [Open-Meteo](https://open-meteo.com/) (ERA5 reanalysis, free, no
 
 Vite · TypeScript · React 19 · Tailwind CSS v4 · shadcn/ui · Recharts · Vitest
 
+## Deploy & CI
+
+- **Hosting:** [Vercel](https://vercel.com) — auto-deploys every push to `main` to production, every PR gets a preview URL
+- **CI:** GitHub Actions runs lint + type-check + tests + build on every push and PR
+
 ## Running locally
 
 Requires Node 20+ and pnpm.

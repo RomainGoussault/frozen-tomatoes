@@ -30,7 +30,8 @@ This is a **TypeScript learning project**. The user is an experienced Python dev
 - **Icons:** Lucide
 - **Font:** Geist (via `@fontsource-variable/geist`)
 - **Testing:** Vitest + React Testing Library + jsdom
-- **Hosting:** Vercel (deploy from GitHub main)
+- **Hosting:** Vercel (auto-deploys from `main`), live at https://frozen-tomatoes.vercel.app
+- **CI:** GitHub Actions — `.github/workflows/ci.yml` runs lint + type-check + tests + build on every push and PR
 
 ## Data
 
