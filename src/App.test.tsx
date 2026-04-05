@@ -2,9 +2,10 @@
 // readout piece of the app.
 //
 // We build a synthetic FrostStats fixture with known values so we can
-// predict the probability output for any slider position.
+// predict the probability output for any slider position. The initial
+// slider position depends on today's date, so we pin it with fake timers.
 
-import { describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StatsCard } from './App'
@@ -21,12 +22,10 @@ function renderCard(city: GeocodedCity, stats: FrostStats) {
 }
 
 // Four synthetic years with last-frost day-of-year = 60, 80, 100, 120.
-// Average doy = 90 (that's where the slider starts).
 //
 //  Selected doy | years with frost AFTER selected | probability
 //  --------------+---------------------------------+------------
-//      90        | {100, 120}                      | 2/4 = 50%
-//      99        | {100, 120}                      | 2/4 = 50%
+//      95        | {100, 120}                      | 2/4 = 50%
 //     100        | {120}                           | 1/4 = 25%
 //     120        | {}                              | 0/4 = 0%
 const years: YearResult[] = [
@@ -40,7 +39,7 @@ const stats: FrostStats = {
   perYear: years,
   yearsWithFrost: 4,
   yearsWithoutFrost: 0,
-  averageDate: '03-31', // doy 90
+  averageDate: '03-31',
   medianDate: '03-31',
   latestDate: '04-30',
   averageDayOfYear: 90,
@@ -57,17 +56,25 @@ const nantes: GeocodedCity = {
 }
 
 describe('StatsCard', () => {
-  test('renders city name with département', () => {
-    renderCard(nantes, stats)
-    expect(
-      screen.getByText('Nantes, Loire-Atlantique'),
-    ).toBeInTheDocument()
+  beforeEach(() => {
+    // Pin today to April 5 → day-of-year 95 (non-leap reference).
+    // We only fake Date, not setTimeout etc, so userEvent still works.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-04-05T12:00:00Z'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
-  test('shows initial probability at the average day-of-year', () => {
+  test('renders city name with département', () => {
     renderCard(nantes, stats)
-    // Initial slider position = averageDayOfYear (90).
-    // 2 of 4 years had frost after doy 90 → 50%.
+    expect(screen.getByText('Nantes, Loire-Atlantique')).toBeInTheDocument()
+  })
+
+  test('shows initial probability at today\'s day-of-year', () => {
+    renderCard(nantes, stats)
+    // Today (Apr 5) = doy 95 → clamped inside [50, 130] → 95.
+    // 2 of 4 years had frost after doy 95 → 50%.
     expect(screen.getByText('50%')).toBeInTheDocument()
   })
 
@@ -77,13 +84,12 @@ describe('StatsCard', () => {
 
     expect(screen.getByText('50%')).toBeInTheDocument()
 
-    // Radix sliders expose the thumb with role="slider" and respond to
-    // arrow keys. Each ArrowRight increments by the step (1).
+    // Radix slider: the thumb has role="slider" and responds to arrows.
     const slider = screen.getByRole('slider')
     slider.focus()
-    await user.keyboard('{ArrowRight>10}') // press ArrowRight 10 times
+    await user.keyboard('{ArrowRight>5}') // 95 + 5 = 100
 
-    // Now at doy 100: only 1 of 4 years (doy 120) had frost after → 25%.
+    // At doy 100: only 1 of 4 years (doy 120) had frost after → 25%.
     expect(screen.getByText('25%')).toBeInTheDocument()
     expect(screen.queryByText('50%')).not.toBeInTheDocument()
   })
@@ -94,8 +100,8 @@ describe('StatsCard', () => {
 
     const slider = screen.getByRole('slider')
     slider.focus()
-    // From 90 to 130 is 40 steps (slider max = max(doys)+10 = 130).
-    await user.keyboard('{ArrowRight>40}')
+    // From 95 to 130 is 35 steps (slider max = max(doys)+10 = 130).
+    await user.keyboard('{ArrowRight>35}')
 
     expect(screen.getByText('0%')).toBeInTheDocument()
   })

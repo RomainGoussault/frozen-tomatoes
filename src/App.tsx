@@ -140,17 +140,21 @@ export function StatsCard({
   const { t, lang } = useT()
   const locale = toLocale(lang)
 
-  // Slider range: bracket the observed data with some padding, clamped.
+  // Slider range: bracket the observed data with some padding, and always
+  // include today's date so the user can see "is it safe NOW?" in context.
+  // In warm regions (e.g. Nice) today may be past every observed frost,
+  // so we extend the upper bound to cover today regardless.
+  const todayDoy = dayOfYearOfToday()
   const observedDoys = stats.perYear
     .map((y) => y.dayOfYear)
     .filter((d): d is number => d !== null)
-  const sliderMin = Math.max(1, Math.min(...observedDoys) - 10)
-  const sliderMax = Math.min(365, Math.max(...observedDoys) + 10)
+  const dataMin = observedDoys.length ? Math.min(...observedDoys) : todayDoy
+  const dataMax = observedDoys.length ? Math.max(...observedDoys) : todayDoy
+  const sliderMin = Math.max(1, Math.min(dataMin, todayDoy) - 10)
+  const sliderMax = Math.min(365, Math.max(dataMax, todayDoy) + 10)
 
-  // Initial slider position: the average, or the mid-range as a fallback.
-  const initialDoy =
-    stats.averageDayOfYear ?? Math.round((sliderMin + sliderMax) / 2)
-  const [selectedDoy, setSelectedDoy] = useState(initialDoy)
+  // Initial slider position: today's day-of-year.
+  const [selectedDoy, setSelectedDoy] = useState(todayDoy)
 
   const probability = probabilityOfFrostAfter(stats, selectedDoy)
   const totalYears = stats.yearsWithFrost + stats.yearsWithoutFrost
@@ -216,6 +220,16 @@ function Stat({ label, value }: { label: string; value: string }) {
       <span className="text-lg font-medium">{value}</span>
     </div>
   )
+}
+
+/** Day-of-year for today, using a non-leap reference so it matches
+ *  the doy values we compute for historical frosts. */
+function dayOfYearOfToday(): number {
+  const now = new Date()
+  const month = now.getMonth() + 1 // 1..12
+  const day = now.getDate()
+  const daysBeforeMonth = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+  return daysBeforeMonth[month - 1] + day
 }
 
 /** Display "05-12" as "May 12" (en) or "12 mai" (fr). */
