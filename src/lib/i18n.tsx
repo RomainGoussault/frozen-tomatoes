@@ -28,7 +28,7 @@ const translations = {
   'No city found.': { fr: 'Aucune ville trouvée.', en: 'No city found.' },
   Average: { fr: 'Moyenne', en: 'Average' },
   Median: { fr: 'Médiane', en: 'Median' },
-  'Latest ever': { fr: 'Plus tardif', en: 'Latest ever' },
+  'Latest ever': { fr: 'Record tardif', en: 'Latest on record' },
   'last frost before July 1': {
     fr: 'dernier gel avant le 1er juillet',
     en: 'last frost before July 1',
