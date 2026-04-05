@@ -15,9 +15,11 @@ import type { FrostStats } from '@/lib/stats'
 
 type Props = {
   stats: FrostStats
+  /** Optional horizontal marker line (e.g. slider-selected day-of-year). */
+  markerDoy?: number
 }
 
-export function FrostChart({ stats }: Props) {
+export function FrostChart({ stats, markerDoy }: Props) {
   // Recharts wants a flat array of {x, y} objects. We drop years with no frost.
   const data = stats.perYear
     .filter((y) => y.dayOfYear !== null)
@@ -74,6 +76,14 @@ export function FrostChart({ stats }: Props) {
                 fontSize: 10,
                 className: 'fill-muted-foreground',
               }}
+            />
+          )}
+          {markerDoy !== undefined && (
+            <ReferenceLine
+              y={markerDoy}
+              stroke="currentColor"
+              strokeWidth={2}
+              className="text-primary"
             />
           )}
           <Scatter data={data} fill="currentColor" className="text-primary" />

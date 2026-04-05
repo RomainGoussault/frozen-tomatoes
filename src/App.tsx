@@ -7,7 +7,13 @@ import {
   fetchDailyMinTemps,
   type GeocodedCity,
 } from '@/lib/openmeteo'
-import { computeFrostStats, type FrostStats } from '@/lib/stats'
+import { Slider } from '@/components/ui/slider'
+import {
+  computeFrostStats,
+  probabilityOfFrostAfter,
+  doyToMonthDay,
+  type FrostStats,
+} from '@/lib/stats'
 import { FrostChart } from '@/components/FrostChart'
 
 type Result = { city: GeocodedCity; stats: FrostStats }
@@ -109,6 +115,20 @@ function StatsCard({
   city: GeocodedCity
   stats: FrostStats
 }) {
+  // Slider range: bracket the observed data with some padding, clamped.
+  const observedDoys = stats.perYear
+    .map((y) => y.dayOfYear)
+    .filter((d): d is number => d !== null)
+  const sliderMin = Math.max(1, Math.min(...observedDoys) - 10)
+  const sliderMax = Math.min(365, Math.max(...observedDoys) + 10)
+
+  // Initial slider position: the average, or the mid-range as a fallback.
+  const initialDoy =
+    stats.averageDayOfYear ?? Math.round((sliderMin + sliderMax) / 2)
+  const [selectedDoy, setSelectedDoy] = useState(initialDoy)
+
+  const probability = probabilityOfFrostAfter(stats, selectedDoy)
+
   return (
     <Card className="w-full max-w-xl">
       <CardHeader>
@@ -127,7 +147,28 @@ function StatsCard({
           <Stat label="Latest ever" value={formatMonthDay(stats.latestDate)} />
         </div>
 
-        <FrostChart stats={stats} />
+        <FrostChart stats={stats} markerDoy={selectedDoy} />
+
+        <div className="space-y-3 pt-2">
+          <div className="flex items-baseline justify-between">
+            <span className="text-muted-foreground text-sm">
+              Chance of frost after{' '}
+              <span className="text-foreground font-medium">
+                {formatMonthDay(doyToMonthDay(selectedDoy))}
+              </span>
+            </span>
+            <span className="text-2xl font-semibold tabular-nums">
+              {probability === null ? '—' : `${Math.round(probability * 100)}%`}
+            </span>
+          </div>
+          <Slider
+            min={sliderMin}
+            max={sliderMax}
+            step={1}
+            value={[selectedDoy]}
+            onValueChange={([v]) => setSelectedDoy(v)}
+          />
+        </div>
 
         <p className="text-muted-foreground text-xs text-center">
           {stats.yearsWithFrost} of {stats.yearsWithFrost + stats.yearsWithoutFrost} years had frost before July

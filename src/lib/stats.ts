@@ -115,6 +115,24 @@ export function computeFrostStats(days: DailyMinTemp[]): FrostStats {
   }
 }
 
+/**
+ * Probability that frost occurs AFTER the given day-of-year, based on the
+ * per-year history. A year with no frost at all counts as "no frost after".
+ *
+ * Returns a value in [0, 1], or null if there's no data.
+ */
+export function probabilityOfFrostAfter(
+  stats: FrostStats,
+  dayOfYear: number,
+): number | null {
+  const total = stats.perYear.length
+  if (total === 0) return null
+  const yearsAfter = stats.perYear.filter(
+    (y) => y.dayOfYear !== null && y.dayOfYear > dayOfYear,
+  ).length
+  return yearsAfter / total
+}
+
 // ---------- Date helpers (kept local; no external deps) ----------
 
 function isBeforeCutoff(isoDate: string): boolean {
@@ -139,7 +157,7 @@ function dayOfYear(isoDate: string): number {
   return daysBeforeMonth[month - 1] + day
 }
 
-function doyToMonthDay(doy: number): string {
+export function doyToMonthDay(doy: number): string {
   // Convert back using a Date object in UTC anchored at 2001 (non-leap).
   const date = new Date(Date.UTC(2001, 0, doy))
   const mm = String(date.getUTCMonth() + 1).padStart(2, '0')
