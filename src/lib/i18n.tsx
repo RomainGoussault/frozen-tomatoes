@@ -57,6 +57,7 @@ const translations = {
     en: 'Probability = share of years with last frost after the selected date.',
   },
   Source: { fr: 'Code', en: 'Source' },
+  'Try:': { fr: 'Essayez :', en: 'Try:' },
 } as const
 
 type TranslationKey = keyof typeof translations

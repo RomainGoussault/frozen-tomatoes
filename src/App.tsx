@@ -16,6 +16,8 @@ import { FrostChart } from '@/components/FrostChart'
 import { CitySearch } from '@/components/CitySearch'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
+import { ExampleChips } from '@/components/ExampleChips'
+import { StatsCardSkeleton } from '@/components/StatsCardSkeleton'
 import { useT, toLocale } from '@/lib/i18n'
 
 type Result = { city: GeocodedCity; stats: FrostStats }
@@ -107,6 +109,7 @@ function App() {
           disabled={status.kind === 'loading'}
         />
 
+        {status.kind === 'idle' && <ExampleChips onPick={runSearch} />}
         <ResultPanel status={status} />
       </main>
       <Footer />
@@ -116,7 +119,8 @@ function App() {
 
 function ResultPanel({ status }: { status: Status }) {
   const { t } = useT()
-  if (status.kind === 'idle' || status.kind === 'loading') return null
+  if (status.kind === 'idle') return null
+  if (status.kind === 'loading') return <StatsCardSkeleton />
 
   if (status.kind === 'error') {
     return <p className="text-destructive text-sm">{status.message}</p>
