@@ -218,7 +218,7 @@ export function FranceMap({ mapData }: { mapData: MapData }) {
 
   return (
     <div className="relative h-[70vh] w-full max-w-4xl overflow-hidden rounded-lg border">
-      <div ref={mapContainerRef} className="absolute inset-0" />
+      <div ref={mapContainerRef} className="h-full w-full" />
       {hover && <HoverTooltip info={hover} />}
       <MapLegend range={range} theme={theme} />
     </div>
