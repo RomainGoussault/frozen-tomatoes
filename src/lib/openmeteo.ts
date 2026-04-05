@@ -97,30 +97,21 @@ type ArchiveApiResponse = {
 }
 
 /**
- * Fetch daily minimum 2-meter air temperature for a location, inclusive range.
- * Uses the Europe/Paris timezone so day boundaries match French civil days.
- *
- * Historical climate data is immutable: the values for 2000–2024 will never
- * change. We cache responses in localStorage, keyed by rounded coordinates
- * and the date range, to avoid hitting Open-Meteo's rate limit (HTTP 429)
- * on repeat visits and to make page loads instant.
+ * Raw fetch of daily minimum 2-meter air temperature — no cache.
+ * Runtime-neutral (works in browser AND Node). Uses the Europe/Paris
+ * timezone so day boundaries match French civil days.
  *
  * Rate-limit note: Open-Meteo counts "API calls" by a weighted formula:
  *   weight = nLocations × (nDays / 14) × (nVariables / 10)
  * Our 26-year × 1-variable archive fetch weighs ~68 calls per request.
- * Free-tier limit is 600/min, 5000/hr, 10000/day per IP. Each cache hit
- * avoids 68 weighted calls — the cache is unusually high-leverage.
+ * Free-tier limit is 600/min, 5000/hr, 10000/day per IP.
  */
-export async function fetchDailyMinTemps(
+export async function fetchDailyMinTempsRaw(
   latitude: number,
   longitude: number,
   startDate: string, // "YYYY-MM-DD"
   endDate: string,
 ): Promise<DailyMinTemp[]> {
-  const cacheKey = makeArchiveCacheKey(latitude, longitude, startDate, endDate)
-  const cached = readCache<DailyMinTemp[]>(cacheKey)
-  if (cached) return cached
-
   const url = new URL('https://archive-api.open-meteo.com/v1/archive')
   url.searchParams.set('latitude', String(latitude))
   url.searchParams.set('longitude', String(longitude))
@@ -138,11 +129,36 @@ export async function fetchDailyMinTemps(
   const { time, temperature_2m_min } = data.daily
 
   // Zip the two parallel arrays into one array of objects.
-  const days = time.map((date, i) => ({
+  return time.map((date, i) => ({
     date,
     minTempC: temperature_2m_min[i],
   }))
+}
 
+/**
+ * Browser-only cached wrapper around fetchDailyMinTempsRaw.
+ *
+ * Historical climate data is immutable: the values for 2000–2024 will never
+ * change. We cache responses in localStorage, keyed by rounded coordinates
+ * and the date range, to avoid hitting Open-Meteo's rate limit on repeat
+ * visits and to make page loads instant.
+ */
+export async function fetchDailyMinTemps(
+  latitude: number,
+  longitude: number,
+  startDate: string,
+  endDate: string,
+): Promise<DailyMinTemp[]> {
+  const cacheKey = makeArchiveCacheKey(latitude, longitude, startDate, endDate)
+  const cached = readCache<DailyMinTemp[]>(cacheKey)
+  if (cached) return cached
+
+  const days = await fetchDailyMinTempsRaw(
+    latitude,
+    longitude,
+    startDate,
+    endDate,
+  )
   writeCache(cacheKey, days)
   return days
 }
@@ -169,6 +185,7 @@ function makeArchiveCacheKey(
 }
 
 function readCache<T>(key: string): T | null {
+  if (typeof window === 'undefined') return null
   try {
     const raw = window.localStorage.getItem(key)
     if (!raw) return null
@@ -185,6 +202,7 @@ function readCache<T>(key: string): T | null {
 }
 
 function writeCache<T>(key: string, value: T): void {
+  if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(
       key,

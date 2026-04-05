@@ -8,7 +8,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { StatsCard } from './App'
+import { StatsCard } from './routes/CityView'
 import { LangProvider } from '@/lib/i18n'
 import type { GeocodedCity } from '@/lib/openmeteo'
 import type { FrostStats, YearResult } from '@/lib/stats'

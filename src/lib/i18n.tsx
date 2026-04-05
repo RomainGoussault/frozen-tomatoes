@@ -58,6 +58,28 @@ const translations = {
   },
   Source: { fr: 'Code', en: 'Source' },
   'Try:': { fr: 'Essayez :', en: 'Try:' },
+  Map: { fr: 'Carte', en: 'Map' },
+  Home: { fr: 'Accueil', en: 'Home' },
+  'France, département by département': {
+    fr: 'La France, département par département',
+    en: 'France, département by département',
+  },
+  'median last frost': {
+    fr: 'dernier gel médian',
+    en: 'median last frost',
+  },
+  'Median last frost': {
+    fr: 'Dernier gel médian',
+    en: 'Median last frost',
+  },
+  'Could not load map data:': {
+    fr: 'Impossible de charger les données :',
+    en: 'Could not load map data:',
+  },
+  'yrs w/ frost': {
+    fr: 'années avec gel',
+    en: 'yrs w/ frost',
+  },
 } as const
 
 type TranslationKey = keyof typeof translations
