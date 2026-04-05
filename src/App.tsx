@@ -29,7 +29,9 @@ const END_YEAR = new Date().getFullYear() - 1
 const START_YEAR = END_YEAR - 19
 
 function App() {
-  const [query, setQuery] = useState('')
+  // Initial query is read from ?city= once, on mount. The function form
+  // of useState is a "lazy initializer" — it runs exactly once.
+  const [query, setQuery] = useState(() => getUrlCity() ?? '')
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
 
   // Core search: runs the full pipeline. Accepts either a raw city name
@@ -71,13 +73,14 @@ function App() {
     }
   }, [])
 
-  // On first mount: if ?city=... is in the URL, prefill and auto-search.
+  // On first mount: if ?city=... was in the URL (already reflected in
+  // `query` via the lazy initializer), kick off the async search. The
+  // rule warns because runSearch sets state, but "fetch on mount" is
+  // a legitimate effect pattern.
   useEffect(() => {
     const fromUrl = getUrlCity()
-    if (fromUrl) {
-      setQuery(fromUrl)
-      runSearch(fromUrl)
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (fromUrl) runSearch(fromUrl)
   }, [runSearch])
 
   return (

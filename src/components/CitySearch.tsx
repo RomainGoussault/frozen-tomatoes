@@ -24,22 +24,23 @@ export function CitySearch({
   onSelect,
   disabled,
 }: Props) {
-  const [suggestions, setSuggestions] = useState<GeocodedCity[]>([])
+  const [fetched, setFetched] = useState<GeocodedCity[]>([])
   const [open, setOpen] = useState(false)
   const debouncedQuery = useDebouncedValue(value, 200)
   const containerRef = useRef<HTMLFormElement>(null)
 
-  // Fetch suggestions when the debounced query changes.
+  const trimmedQuery = debouncedQuery.trim()
+  // Derived: only expose fetched suggestions when the query is long enough.
+  // This avoids calling setState just to clear the list.
+  const suggestions = trimmedQuery.length < 2 ? [] : fetched
+
+  // Fetch suggestions when the debounced query changes (and is long enough).
   useEffect(() => {
-    const trimmed = debouncedQuery.trim()
-    if (trimmed.length < 2) {
-      setSuggestions([])
-      return
-    }
+    if (trimmedQuery.length < 2) return
 
     const controller = new AbortController()
-    searchCities(trimmed, 5, controller.signal)
-      .then((results) => setSuggestions(results))
+    searchCities(trimmedQuery, 5, controller.signal)
+      .then((results) => setFetched(results))
       .catch((err) => {
         // Ignore cancellations from newer queries; log real errors.
         if (err instanceof Error && err.name !== 'AbortError') {
@@ -47,9 +48,9 @@ export function CitySearch({
         }
       })
 
-    // Cleanup: if debouncedQuery changes again, cancel this in-flight fetch.
+    // Cleanup: if trimmedQuery changes again, cancel this in-flight fetch.
     return () => controller.abort()
-  }, [debouncedQuery])
+  }, [trimmedQuery])
 
   // Close the dropdown if the user clicks outside it.
   useEffect(() => {
