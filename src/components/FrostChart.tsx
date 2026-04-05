@@ -81,6 +81,7 @@ export function FrostChart({ stats, markerDoy }: Props) {
                 value: t('avg'),
                 position: 'insideRight',
                 offset: 6,
+                dy: -8,
                 fontSize: 10,
                 className: 'fill-muted-foreground',
               }}
