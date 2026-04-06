@@ -41,9 +41,23 @@ const START_YEAR = 2000
 const END_YEAR = new Date().getFullYear() - 1
 
 export function CityView() {
-  const { t } = useT()
+  const { t, lang } = useT()
   const [query, setQuery] = useState(() => getUrlCity() ?? '')
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
+
+  // Dynamic page title for SEO — shows city name when available.
+  useEffect(() => {
+    if (status.kind === 'success') {
+      const { city } = status.result
+      const region = city.admin2 ?? city.admin1 ?? ''
+      document.title = `Dernier gel — ${city.name}${region ? `, ${region}` : ''}`
+    } else {
+      document.title =
+        lang === 'fr'
+          ? 'Dernier gel — Dates de dernier gel en France'
+          : 'Dernier gel — Last frost dates in France'
+    }
+  }, [status, lang])
 
   const runSearch = useCallback(async (choice: string | GeocodedCity) => {
     try {

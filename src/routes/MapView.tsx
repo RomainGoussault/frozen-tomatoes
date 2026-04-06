@@ -30,6 +30,10 @@ export function MapView() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    document.title = 'Dernier gel — Carte de France'
+  }, [])
+
+  useEffect(() => {
     const ctrl = new AbortController()
     fetch('/map-data.json', { signal: ctrl.signal })
       .then((r) => {

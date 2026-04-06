@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://frozen-tomatoes.vercel.app/sitemap.xml
