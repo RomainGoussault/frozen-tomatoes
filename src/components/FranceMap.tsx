@@ -277,6 +277,9 @@ function MapLegend({
   const locale = lang === 'fr' ? 'fr-FR' : 'en-US'
   const steps = [0, 0.25, 0.5, 0.75, 1]
 
+  // Intermediate stops for labels below the gradient bar (25%, 50%, 75%).
+  const intermediateStops = [0.25, 0.5, 0.75]
+
   return (
     <div className="absolute bottom-3 left-3 rounded-md border bg-popover/90 backdrop-blur px-3 py-2 text-xs">
       <div className="text-muted-foreground mb-1">{t('Median last frost')}</div>
@@ -284,17 +287,33 @@ function MapLegend({
         <span className="tabular-nums text-[10px] text-muted-foreground">
           {doyToLabel(range.min, locale)}
         </span>
-        <div className="flex h-2 w-40 overflow-hidden rounded-sm">
-          {steps.map((stop, i) => {
-            const doy = range.min + (range.max - range.min) * stop
-            return (
-              <div
-                key={i}
-                className="flex-1"
-                style={{ background: colorForDoy(doy, range, theme) }}
-              />
-            )
-          })}
+        <div className="flex flex-col">
+          <div className="flex h-2 w-40 overflow-hidden rounded-sm">
+            {steps.map((stop, i) => {
+              const doy = range.min + (range.max - range.min) * stop
+              return (
+                <div
+                  key={i}
+                  className="flex-1"
+                  style={{ background: colorForDoy(doy, range, theme) }}
+                />
+              )
+            })}
+          </div>
+          <div className="relative h-3 w-40">
+            {intermediateStops.map((stop) => {
+              const doy = range.min + (range.max - range.min) * stop
+              return (
+                <span
+                  key={stop}
+                  className="absolute tabular-nums text-[9px] text-muted-foreground -translate-x-1/2"
+                  style={{ left: `${stop * 100}%`, top: 1 }}
+                >
+                  {doyToLabel(doy, locale)}
+                </span>
+              )
+            })}
+          </div>
         </div>
         <span className="tabular-nums text-[10px] text-muted-foreground">
           {doyToLabel(range.max, locale)}

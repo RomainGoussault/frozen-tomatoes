@@ -1,9 +1,14 @@
 // Small footer with data source + methodology note.
+// On the /map route, shows a prefecture note instead of the probability explanation.
 
+import { useLocation } from 'react-router'
 import { useT } from '@/lib/i18n'
 
 export function Footer() {
   const { t } = useT()
+  const { pathname } = useLocation()
+  const isMap = pathname === '/map'
+
   return (
     <footer className="text-muted-foreground mx-auto max-w-2xl px-4 pb-12 pt-4 text-center text-xs leading-relaxed">
       <p>
@@ -27,7 +32,9 @@ export function Footer() {
         </a>
       </p>
       <p className="mt-1">
-        {t('Probability = share of years with last frost after the selected date.')}
+        {isMap
+          ? t('Each département shows data from its préfecture.')
+          : t('Probability = share of years with last frost after the selected date.')}
       </p>
     </footer>
   )

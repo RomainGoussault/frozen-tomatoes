@@ -80,6 +80,10 @@ const translations = {
     fr: 'années avec gel',
     en: 'yrs w/ frost',
   },
+  'Each département shows data from its préfecture.': {
+    fr: 'Chaque département affiche les données de sa préfecture.',
+    en: 'Each département shows data from its préfecture.',
+  },
 } as const
 
 type TranslationKey = keyof typeof translations
