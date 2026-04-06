@@ -1,6 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
+import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import './index.css'
 import App from './App.tsx'
 import { ThemeProvider } from './lib/theme.tsx'
@@ -22,6 +24,8 @@ createRoot(document.getElementById('root')!).render(
       <LangProvider>
         <BrowserRouter>
           <App />
+          <Analytics />
+          <SpeedInsights />
         </BrowserRouter>
       </LangProvider>
     </ThemeProvider>
